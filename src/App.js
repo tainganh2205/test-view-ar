@@ -23,21 +23,33 @@ const models = [
 function App() {
   const [activeGlb, setActiveGlb] = useState("/bmw.glb");
   const [isARMode, setIsARMode] = useState(false);
+  const [isVRMode, setIsVRMode] = useState(false);
 
   const enterAR = async (modelPath) => {
     try {
       await navigator.xr.requestSession("immersive-ar", {requiredFeatures: ["hit-test"]});
-      // Tự động đặt camera vào chế độ AR khi nhấp vào nút AR
-      // Lưu ý: Cần phải có môi trường AR thực tế để xem hiệu ứng đầy đủ.
-      setActiveGlb(modelPath); // Cập nhật mô hình khi vào chế độ AR
+      setActiveGlb(modelPath);
       setIsARMode(true);
+      setIsVRMode(false);
     } catch (error) {
       console.error("Error entering AR mode", error);
     }
   };
 
-  const exitAR = () => {
+  const enterVR = async (modelPath) => {
+    try {
+      await navigator.xr.requestSession("immersive-vr");
+      setActiveGlb(modelPath);
+      setIsVRMode(true);
+      setIsARMode(false);
+    } catch (error) {
+      console.error("Error entering VR mode", error);
+    }
+  };
+
+  const exitXRMode = () => {
     setIsARMode(false);
+    setIsVRMode(false);
   };
 
   return (
@@ -55,6 +67,9 @@ function App() {
               <button onClick={() => enterAR(model.glpPath)}>
                 View In Ar
               </button>
+              <button onClick={() => enterVR(model.glpPath)}>
+                View In VR
+              </button>
               <span>{model.key}</span>
             </div>
           ))}
@@ -62,9 +77,11 @@ function App() {
       </div>
       <div>
         {isARMode ? (
-          <ARCanvas path={activeGlb} exitAR={exitAR}/>
+          <ARCanvas path={activeGlb} exitAR={exitXRMode}/>
+        ) : isVRMode ? (
+          <VRCanvas path={activeGlb} exitVR={exitXRMode}/>
         ) : (
-          <Canvas3D path={activeGlb}/>
+          <Canvas3D path={activeGlb} enterVR={enterVR}/>
         )}
       </div>
     </div>
@@ -87,7 +104,23 @@ const ARCanvas = ({path, exitAR}) => {
   );
 };
 
-const Canvas3D = ({path}) => {
+const VRCanvas = ({path, exitVR}) => {
+  return (
+    <Canvas dpr={[1, 2]} shadows camera={{fov: 45}} style={{position: "absolute"}}>
+      <color attach="background" args={["#101010"]}/>
+      <PresentationControls speed={2.5} global zoom={0.5} polar={[-0.1, Math.PI / 4]}>
+        <Stage environment={"sunset"}>
+          <Model scale={0.01} path={path}/>
+        </Stage>
+      </PresentationControls>
+      <button onClick={exitVR} style={{position: "absolute", top: "10px", left: "10px"}}>
+        Back to 3D
+      </button>
+    </Canvas>
+  );
+};
+
+const Canvas3D = ({path, enterVR}) => {
   return (
     <Canvas dpr={[1, 2]} shadows camera={{fov: 45}} style={{position: "absolute"}}>
       <color attach="background" args={["#101010"]}/>
